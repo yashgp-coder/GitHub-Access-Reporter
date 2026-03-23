@@ -77,3 +77,5 @@ replay_pid*
 # ── Docker ──────────────────────────────────────────────────
 .dockerignore
 docker-compose.override.yml
+
+.env
