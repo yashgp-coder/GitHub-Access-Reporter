@@ -1,0 +1,79 @@
+# ── Maven ──────────────────────────────────────────────────
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ── Spring Boot ─────────────────────────────────────────────
+HELP.md
+spring-shell.log
+
+# ── Application secrets — NEVER commit these ────────────────
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+src/main/resources/application.yml
+src/main/resources/application-*.yml
+
+# Keep the template (no real token inside)
+!src/main/resources/application.properties.template
+
+# ── IDE — IntelliJ IDEA ─────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ── IDE — VS Code ───────────────────────────────────────────
+.vscode/
+*.code-workspace
+
+# ── IDE — Eclipse ───────────────────────────────────────────
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+
+# ── IDE — NetBeans ──────────────────────────────────────────
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ── OS ──────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V8
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Java ────────────────────────────────────────────────────
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ── Docker ──────────────────────────────────────────────────
+.dockerignore
+docker-compose.override.yml

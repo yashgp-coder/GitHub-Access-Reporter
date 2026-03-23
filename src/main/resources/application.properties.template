@@ -1,0 +1,24 @@
+# Copy this file to application.properties and fill in your values
+# application.properties is gitignored — this template is safe to commit
+
+# ── Server ───────────────────────────────────────────────
+server.port=8080
+
+# ── GitHub API ───────────────────────────────────────────
+github.api.base-url=https://api.github.com
+github.api.token=${GITHUB_API_TOKEN:your_personal_access_token_here}
+github.api.page-size=100
+
+# ── Thread Pool ──────────────────────────────────────────
+github.threadpool.core-size=10
+github.threadpool.max-size=20
+github.threadpool.queue-capacity=2000
+github.threadpool.thread-name-prefix=github-worker-
+
+# ── Cache ────────────────────────────────────────────────
+github.cache.ttl-minutes=5
+
+# ── Swagger ──────────────────────────────────────────────
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.swagger-ui.operationsSorter=method

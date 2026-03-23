@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Access Reporter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c10;
+    --bg2:       #0f1218;
+    --bg3:       #161b24;
+    --bg4:       #1c2333;
+    --border:    #21262d;
+    --border2:   #30363d;
+    --green:     #3fb950;
+    --green-dim: #1a4f26;
+    --blue:      #58a6ff;
+    --blue-dim:  #1f3a5f;
+    --amber:     #d29922;
+    --amber-dim: #3d2e00;
+    --red:       #f85149;
+    --red-dim:   #3d1a1a;
+    --purple:    #bc8cff;
+    --text:      #e6edf3;
+    --text2:     #8b949e;
+    --text3:     #484f58;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; overflow-x:hidden; }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: linear-gradient(var(--border) 1px,transparent 1px), linear-gradient(90deg,var(--border) 1px,transparent 1px);
+    background-size:40px 40px; opacity:0.3; pointer-events:none; z-index:0;
+  }
+
+  header {
+    position:relative; z-index:10; border-bottom:1px solid var(--border);
+    padding:18px 32px; display:flex; align-items:center; gap:16px;
+    background:rgba(10,12,16,0.9); backdrop-filter:blur(12px);
+  }
+  .logo { width:32px; height:32px; background:var(--green); border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .logo svg { width:18px; height:18px; fill:#0a0c10; }
+  .header-title { font-family:var(--mono); font-size:15px; font-weight:600; color:var(--text); letter-spacing:-0.3px; }
+  .header-sub { font-family:var(--mono); font-size:11px; color:var(--text3); margin-left:auto; }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s ease-in-out infinite; flex-shrink:0; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  main { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:48px 24px; }
+
+  .hero { text-align:center; margin-bottom:48px; }
+  .hero-tag { display:inline-block; font-family:var(--mono); font-size:11px; color:var(--green); background:var(--green-dim); border:1px solid var(--green); border-radius:4px; padding:3px 10px; margin-bottom:20px; letter-spacing:.5px; }
+  .hero h1 { font-family:var(--mono); font-size:clamp(28px,4vw,44px); font-weight:600; line-height:1.2; margin-bottom:14px; letter-spacing:-1px; }
+  .hero h1 span { color:var(--green); }
+  .hero p { font-size:15px; color:var(--text2); font-weight:300; max-width:480px; margin:0 auto; line-height:1.7; }
+
+  .search-wrap { background:var(--bg2); border:1px solid var(--border2); border-radius:12px; padding:24px; margin-bottom:40px; position:relative; }
+  .search-wrap::before { content:'$ access-report --org'; font-family:var(--mono); font-size:11px; color:var(--text3); position:absolute; top:-10px; left:16px; background:var(--bg2); padding:0 8px; }
+  .search-row { display:flex; gap:12px; align-items:stretch; }
+  .input-wrap { flex:1; position:relative; }
+  .input-prefix { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:14px; color:var(--green); pointer-events:none; }
+  #orgInput { width:100%; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:14px 14px 14px 36px; font-family:var(--mono); font-size:15px; color:var(--text); outline:none; transition:border-color .2s,box-shadow .2s; }
+  #orgInput::placeholder { color:var(--text3); }
+  #orgInput:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(63,185,80,.12); }
+
+  .btn-run { background:var(--green); color:#0a0c10; border:none; border-radius:8px; padding:14px 28px; font-family:var(--mono); font-size:14px; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; display:flex; align-items:center; gap:8px; letter-spacing:-.3px; }
+  .btn-run:hover { background:#4fc662; transform:translateY(-1px); }
+  .btn-run:active { transform:translateY(0); }
+  .btn-run:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+  .search-hints { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; align-items:center; }
+  .hint-label { font-family:var(--mono); font-size:11px; color:var(--text3); }
+  .hint { font-family:var(--mono); font-size:11px; color:var(--text3); background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:4px 10px; cursor:pointer; transition:all .15s; }
+  .hint:hover { color:var(--blue); border-color:var(--blue); background:var(--blue-dim); }
+
+  #loading { display:none; text-align:center; padding:64px 0; }
+  .loader-ring { width:48px; height:48px; border:2px solid var(--border2); border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 20px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .loader-text { font-family:var(--mono); font-size:13px; color:var(--text2); }
+  .loader-sub { font-family:var(--mono); font-size:11px; color:var(--text3); margin-top:8px; }
+
+  #errorBox { display:none; background:var(--red-dim); border:1px solid var(--red); border-radius:10px; padding:18px 20px; margin-bottom:32px; align-items:flex-start; gap:14px; }
+  .err-icon { width:20px; height:20px; background:var(--red); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:700; color:#fff; margin-top:1px; }
+  .err-code { font-family:var(--mono); font-size:12px; color:var(--red); font-weight:600; margin-bottom:4px; }
+  .err-msg { font-size:14px; color:var(--text2); line-height:1.5; }
+
+  #results { display:none; }
+
+  .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:32px; }
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:18px 20px; position:relative; overflow:hidden; }
+  .card::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .card.green::after { background:var(--green); }
+  .card.blue::after  { background:var(--blue); }
+  .card.amber::after { background:var(--amber); }
+  .card.purple::after{ background:var(--purple); }
+  .card.red::after   { background:var(--red); }
+  .card-label { font-family:var(--mono); font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  .card-value { font-family:var(--mono); font-size:26px; font-weight:600; color:var(--text); line-height:1; margin-bottom:6px; }
+  .card-sub { font-size:11px; color:var(--text3); font-family:var(--mono); }
+
+  .badge { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+  .badge.success { background:var(--green-dim); color:var(--green); border:1px solid var(--green); }
+  .badge.partial  { background:var(--amber-dim); color:var(--amber); border:1px solid var(--amber); }
+  .badge-dot { width:5px; height:5px; border-radius:50%; background:currentColor; }
+
+  .action-strip { display:flex; align-items:center; gap:10px; margin-bottom:28px; flex-wrap:wrap; }
+  .org-pill { font-family:var(--mono); font-size:12px; color:var(--text2); background:var(--bg3); border:1px solid var(--border2); padding:5px 12px; border-radius:20px; }
+  .org-pill span { color:var(--green); }
+  .gen-time { font-family:var(--mono); font-size:11px; color:var(--text3); margin-left:auto; }
+
+  .btn-sm { font-family:var(--mono); font-size:11px; padding:5px 12px; border-radius:6px; border:1px solid var(--border2); background:var(--bg3); color:var(--text2); cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:5px; }
+  .btn-sm:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-dim); }
+  .btn-sm.danger:hover { border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
+
+  .section-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); gap:12px; flex-wrap:wrap; }
+  .section-title { font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text2); display:flex; align-items:center; gap:8px; }
+  .section-title .count { background:var(--bg4); border:1px solid var(--border2); border-radius:10px; padding:1px 8px; font-size:11px; color:var(--text3); }
+
+  .filter-wrap { position:relative; min-width:200px; }
+  #filterInput { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:7px; padding:9px 14px 9px 34px; font-family:var(--mono); font-size:12px; color:var(--text); outline:none; transition:border-color .2s; }
+  #filterInput::placeholder { color:var(--text3); }
+  #filterInput:focus { border-color:var(--border2); }
+  .filter-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text3); pointer-events:none; }
+
+  .user-list { display:flex; flex-direction:column; gap:8px; }
+  .user-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .2s; animation:fadeIn .3s ease both; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .user-card:hover { border-color:var(--border2); }
+  .user-hd { display:flex; align-items:center; gap:14px; padding:14px 18px; cursor:pointer; user-select:none; }
+  .user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--blue-dim),var(--green-dim)); border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:13px; font-weight:600; color:var(--blue); flex-shrink:0; overflow:hidden; }
+  .user-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+  .user-name { font-family:var(--mono); font-size:14px; font-weight:500; color:var(--text); flex:1; }
+  .user-repo-count { font-family:var(--mono); font-size:11px; color:var(--text3); background:var(--bg4); border:1px solid var(--border); padding:2px 9px; border-radius:10px; }
+  .chevron { color:var(--text3); transition:transform .2s; flex-shrink:0; }
+  .user-card.open .chevron { transform:rotate(180deg); }
+
+  .repo-table-wrap { display:none; border-top:1px solid var(--border); background:var(--bg); }
+  .user-card.open .repo-table-wrap { display:block; }
+
+  table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
+  th { padding:9px 18px; text-align:left; color:var(--text3); font-size:10px; text-transform:uppercase; letter-spacing:.8px; background:var(--bg2); border-bottom:1px solid var(--border); font-weight:500; }
+  td { padding:9px 18px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:var(--bg3); }
+  .repo-name { color:var(--blue); display:flex; align-items:center; gap:6px; }
+
+  .perm { display:inline-flex; align-items:center; font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px; letter-spacing:.5px; text-transform:uppercase; }
+  .perm.admin { background:var(--red-dim);   color:var(--red);   border:1px solid rgba(248,81,73,.3); }
+  .perm.write { background:var(--amber-dim); color:var(--amber); border:1px solid rgba(210,153,34,.3); }
+  .perm.read  { background:var(--green-dim); color:var(--green); border:1px solid rgba(63,185,80,.3); }
+  .perm.none  { background:var(--bg4);       color:var(--text3); border:1px solid var(--border); }
+
+  .failed-wrap { background:var(--amber-dim); border:1px solid var(--amber); border-radius:10px; padding:18px 20px; margin-bottom:24px; }
+  .failed-title { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--amber); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .failed-chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .failed-chip { font-family:var(--mono); font-size:11px; background:rgba(210,153,34,.1); border:1px solid rgba(210,153,34,.3); color:var(--amber); padding:3px 10px; border-radius:4px; }
+
+  .empty { text-align:center; padding:40px 0; color:var(--text3); font-family:var(--mono); font-size:13px; }
+
+  #toast { position:fixed; bottom:24px; right:24px; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:12px 18px; font-family:var(--mono); font-size:12px; color:var(--text); z-index:1000; opacity:0; transform:translateY(10px); transition:all .25s; pointer-events:none; }
+  #toast.show { opacity:1; transform:translateY(0); }
+
+  /* ── Health check bar ── */
+  .health-bar {
+    position:relative; z-index:10;
+    background:var(--bg2);
+    border-bottom:1px solid var(--border);
+    padding:8px 32px;
+    display:flex;
+    align-items:center;
+    gap:20px;
+    flex-wrap:wrap;
+  }
+  .health-label {
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--text3);
+    text-transform:uppercase;
+    letter-spacing:.8px;
+    flex-shrink:0;
+  }
+  .health-item {
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text2);
+  }
+  .health-dot {
+    width:7px; height:7px;
+    border-radius:50%;
+    background:var(--text3);
+    flex-shrink:0;
+    transition:background .3s, box-shadow .3s;
+  }
+  .health-dot.up   { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .health-dot.down { background:var(--red);   box-shadow:0 0 6px var(--red); animation:none; }
+  .health-dot.checking { background:var(--amber); animation:pulse 1s ease-in-out infinite; }
+  .health-val {
+    font-family:var(--mono);
+    font-size:10px;
+    padding:1px 7px;
+    border-radius:4px;
+    border:1px solid var(--border2);
+    color:var(--text3);
+    transition:all .3s;
+  }
+  .health-val.up   { color:var(--green); border-color:var(--green-dim); background:var(--green-dim); }
+  .health-val.down { color:var(--red);   border-color:var(--red-dim);   background:var(--red-dim); }
+  .health-divider  { width:1px; height:14px; background:var(--border); flex-shrink:0; }
+  .health-ping     { font-family:var(--mono); font-size:10px; color:var(--text3); margin-left:auto; }
+  .btn-recheck {
+    font-family:var(--mono); font-size:10px;
+    padding:3px 10px; border-radius:4px;
+    border:1px solid var(--border); background:none;
+    color:var(--text3); cursor:pointer;
+    transition:all .15s;
+  }
+  .btn-recheck:hover { border-color:var(--green); color:var(--green); }
+
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+  @media(max-width:600px) {
+    main { padding:32px 16px; }
+    .search-row { flex-direction:column; }
+    .btn-run { width:100%; justify-content:center; }
+    header { padding:14px 16px; }
+    .header-sub { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.165 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.268 2.75 1.026A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.337 1.909-1.294 2.747-1.026 2.747-1.026.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
+  </div>
+  <span class="header-title">access-reporter</span>
+  <span class="status-dot" id="mainDot" style="background:var(--amber);box-shadow:0 0 8px var(--amber)"></span>
+  <span class="header-sub" id="headerSub">checking server...</span>
+</header>
+
+<!-- Health check bar -->
+<div class="health-bar">
+  <span class="health-label">System</span>
+
+  <div class="health-item">
+    <span class="health-dot checking" id="hDotApi"></span>
+    <span>API Server</span>
+    <span class="health-val" id="hValApi">checking...</span>
+  </div>
+
+  <div class="health-divider"></div>
+
+  <div class="health-item">
+    <span class="health-dot checking" id="hDotGh"></span>
+    <span>GitHub API</span>
+    <span class="health-val" id="hValGh">checking...</span>
+  </div>
+
+  <div class="health-divider"></div>
+
+  <div class="health-item">
+    <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">Response</span>
+    <span class="health-val" id="hPing" style="min-width:54px;text-align:center">—</span>
+  </div>
+
+  <span class="health-ping" id="hCheckedAt"></span>
+  <button class="btn-recheck" onclick="checkHealth()">↻ recheck</button>
+</div>
+
+<main>
+  <div class="hero">
+    <div class="hero-tag">v1.0.0 — production</div>
+    <h1>GitHub <span>Access</span> Reporter</h1>
+    <p>Generate detailed user-to-repository access maps for any GitHub organization or personal account.</p>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-row">
+      <div class="input-wrap">
+        <span class="input-prefix">@</span>
+        <input id="orgInput" type="text" placeholder="organization or username" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn-run" id="runBtn" onclick="runReport()">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 110 16A8 8 0 018 0zm0 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zm-1 3.5l4.5 3-4.5 3V5z"/></svg>
+        Run Report
+      </button>
+    </div>
+    <div class="search-hints">
+      <span class="hint-label">try:</span>
+      <span class="hint" onclick="setOrg('google')">google</span>
+      <span class="hint" onclick="setOrg('microsoft')">microsoft</span>
+      <span class="hint" onclick="setOrg('spring-projects')">spring-projects</span>
+      <span class="hint" onclick="setOrg('facebook')">facebook</span>
+    </div>
+  </div>
+
+  <div id="loading">
+    <div class="loader-ring"></div>
+    <div class="loader-text" id="loadingText">Fetching repositories...</div>
+    <div class="loader-sub">This may take up to 30s for large organizations</div>
+  </div>
+
+  <div id="errorBox">
+    <div class="err-icon">!</div>
+    <div>
+      <div class="err-code" id="errCode">ERROR</div>
+      <div class="err-msg" id="errMsg"></div>
+    </div>
+  </div>
+
+  <div id="results">
+    <div class="action-strip">
+      <div class="org-pill">org: <span id="orgPill"></span></div>
+      <div id="statusBadge"></div>
+      <span class="gen-time" id="genTime"></span>
+      <button class="btn-sm danger" onclick="evictCache()">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1.75V3h2.25a.75.75 0 010 1.5H2.75a.75.75 0 010-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75zM4.496 6.675a.75.75 0 10-1.492.15l.66 6.6A1.75 1.75 0 005.405 15h5.19c.9 0 1.652-.681 1.741-1.576l.66-6.6a.75.75 0 10-1.492-.149l-.66 6.6a.25.25 0 01-.249.225H5.405a.25.25 0 01-.249-.225l-.66-6.6z"/></svg>
+        Evict Cache
+      </button>
+      <button class="btn-sm" onclick="runReport()">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M1.705 8.005a.75.75 0 01.834.656 5.5 5.5 0 009.592 2.97l-1.204-1.204a.25.25 0 01.177-.427h3.646a.25.25 0 01.25.25v3.646a.25.25 0 01-.427.177l-1.38-1.38A7.002 7.002 0 011.05 8.84a.75.75 0 01.656-.834zM8 2.5a5.487 5.487 0 00-4.131 1.869l1.204 1.204A.25.25 0 014.896 6H1.25A.25.25 0 011 5.75V2.104a.25.25 0 01.427-.177l1.38 1.38A7.002 7.002 0 0114.95 7.16a.75.75 0 01-1.49.178A5.5 5.5 0 008 2.5z"/></svg>
+        Refresh
+      </button>
+    </div>
+
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div id="failedWrap"></div>
+
+    <div class="section-hd">
+      <span class="section-title">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text3)"><path d="M2 5.5a3.5 3.5 0 115.898 2.549 5.508 5.508 0 013.034 4.084.75.75 0 11-1.482.235 4.001 4.001 0 00-7.9 0 .75.75 0 01-1.482-.236A5.507 5.507 0 013.102 8.05 3.49 3.49 0 012 5.5zM11 4a3.001 3.001 0 012.22 5.018 5.01 5.01 0 012.56 3.012.749.749 0 01-.885.954.752.752 0 01-.549-.463 3.508 3.508 0 00-2.522-2.372.75.75 0 01-.574-.73v-.352a.75.75 0 01.416-.672A1.5 1.5 0 0011 5.5h-.012a1.5 1.5 0 00-.048 3 .75.75 0 01.56 1.248 3.5 3.5 0 00-1.5.632V10a.75.75 0 01-.4.662A5.009 5.009 0 0011 4z"/></svg>
+        Users
+        <span class="count" id="userCount">0</span>
+      </span>
+      <div class="filter-wrap">
+        <span class="filter-icon">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M10.68 11.74a6 6 0 01-7.922-8.982 6 6 0 018.982 7.922l3.04 3.04a.749.749 0 11-1.06 1.06l-3.04-3.04zM6 11a5 5 0 100-10 5 5 0 000 10z"/></svg>
+        </span>
+        <input id="filterInput" type="text" placeholder="filter users or repos..." oninput="filterUsers()">
+      </div>
+    </div>
+
+    <div class="user-list" id="userList"></div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:8080';
+let currentOrg = '';
+let allUsers = [];
+
+function setOrg(name) {
+  document.getElementById('orgInput').value = name;
+  document.getElementById('orgInput').focus();
+}
+
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function setLoading(on) {
+  document.getElementById('loading').style.display = on ? 'block' : 'none';
+  document.getElementById('runBtn').disabled = on;
+  if (on) {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('errorBox').style.display = 'none';
+  }
+}
+
+function showError(code, msg) {
+  document.getElementById('errCode').textContent = code;
+  document.getElementById('errMsg').textContent = msg;
+  document.getElementById('errorBox').style.display = 'flex';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('loading').style.display = 'none';
+}
+
+async function runReport() {
+  const org = document.getElementById('orgInput').value.trim();
+  if (!org) { showToast('Please enter an organization name'); return; }
+  currentOrg = org;
+  setLoading(true);
+
+  const msgs = ['Fetching repositories...','Launching parallel workers...','Fetching collaborators...','Aggregating access data...','Building report...'];
+  let mi = 0;
+  const iv = setInterval(() => {
+    mi = (mi + 1) % msgs.length;
+    document.getElementById('loadingText').textContent = msgs[mi];
+  }, 3000);
+
+  try {
+    const res = await fetch(`${API}/api/github/access-report?org=${encodeURIComponent(org)}`);
+    clearInterval(iv);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: String(res.status), message: res.statusText }));
+      showError(err.error || 'HTTP_ERROR', err.message || `Request failed with status ${res.status}`);
+      return;
+    }
+    const data = await res.json();
+    renderResults(data);
+  } catch(e) {
+    clearInterval(iv);
+    if (e.name === 'TypeError') {
+      showError('CONNECTION_ERROR', 'Cannot reach localhost:8080. Make sure your Spring Boot server is running (mvn spring-boot:run).');
+    } else {
+      showError('UNEXPECTED_ERROR', e.message);
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderResults(data) {
+  allUsers = data.data || [];
+  const isSuccess = data.status === 'SUCCESS';
+
+  document.getElementById('orgPill').textContent = data.organization;
+  document.getElementById('statusBadge').innerHTML =
+    `<span class="badge ${isSuccess ? 'success' : 'partial'}"><span class="badge-dot"></span>${data.status}</span>`;
+
+  const dt = new Date(data.generatedAt);
+  document.getElementById('genTime').textContent = `Generated ${dt.toLocaleTimeString()}`;
+
+  document.getElementById('summaryGrid').innerHTML = `
+    <div class="card blue">
+      <div class="card-label">Organization</div>
+      <div class="card-value" style="font-size:17px;color:var(--blue)">${data.organization}</div>
+      <div class="card-sub">github.com/${data.organization}</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">Repositories</div>
+      <div class="card-value" style="color:var(--green)">${data.totalRepos.toLocaleString()}</div>
+      <div class="card-sub">total scanned</div>
+    </div>
+    <div class="card purple">
+      <div class="card-label">Unique Users</div>
+      <div class="card-value" style="color:var(--purple)">${data.totalUsers.toLocaleString()}</div>
+      <div class="card-sub">with access</div>
+    </div>
+    <div class="card ${isSuccess ? 'green' : 'amber'}">
+      <div class="card-label">Status</div>
+      <div class="card-value" style="font-size:14px;color:${isSuccess ? 'var(--green)' : 'var(--amber)'}">${data.status}</div>
+      <div class="card-sub">${isSuccess ? 'all repos processed' : 'partial results'}</div>
+    </div>
+    ${data.failedRepositories ? `<div class="card red">
+      <div class="card-label">Failed</div>
+      <div class="card-value" style="color:var(--red)">${data.failedRepositories.length}</div>
+      <div class="card-sub">could not fetch</div>
+    </div>` : ''}
+  `;
+
+  const fw = document.getElementById('failedWrap');
+  if (data.failedRepositories && data.failedRepositories.length > 0) {
+    fw.innerHTML = `<div class="failed-wrap">
+      <div class="failed-title">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM0 8a8 8 0 1116 0A8 8 0 010 8zm7.25-3.25a.75.75 0 011.5 0v4.5a.75.75 0 01-1.5 0v-4.5zm.75 7.5A.75.75 0 118 11a.75.75 0 010 1.5z"/></svg>
+        ${data.failedRepositories.length} repositories could not be fetched (access denied)
+      </div>
+      <div class="failed-chips">${data.failedRepositories.map(r => `<span class="failed-chip">${r}</span>`).join('')}</div>
+    </div>`;
+  } else { fw.innerHTML = ''; }
+
+  document.getElementById('userCount').textContent = allUsers.length;
+  renderUserList(allUsers);
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('filterInput').value = '';
+}
+
+function renderUserList(users) {
+  const list = document.getElementById('userList');
+  if (!users.length) { list.innerHTML = '<div class="empty">No users found</div>'; return; }
+
+  list.innerHTML = users.map((u, i) => {
+    const repos = u.repositories || [];
+    const initial = (u.username || '?')[0].toUpperCase();
+    const rows = repos.map(r => `<tr>
+      <td><span class="repo-name">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8z"/></svg>
+        ${r.repoName}
+      </span></td>
+      <td><span class="perm ${r.permission || 'none'}">${r.permission || 'none'}</span></td>
+    </tr>`).join('');
+
+    return `<div class="user-card" id="uc${i}" style="animation-delay:${Math.min(i*30,400)}ms">
+      <div class="user-hd" onclick="toggleUser(${i})">
+        <div class="user-avatar">
+          <img src="https://avatars.githubusercontent.com/${u.username}" 
+               onerror="this.style.display='none';this.parentNode.textContent='${initial}'" alt="">
+        </div>
+        <span class="user-name">${u.username}</span>
+        <span class="user-repo-count">${repos.length} repo${repos.length !== 1 ? 's' : ''}</span>
+        <svg class="chevron" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z"/>
+        </svg>
+      </div>
+      <div class="repo-table-wrap">
+        ${repos.length ? `<table><thead><tr><th>Repository</th><th>Permission</th></tr></thead><tbody>${rows}</tbody></table>`
+          : '<div class="empty" style="padding:20px">No repositories</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleUser(i) {
+  document.getElementById('uc' + i).classList.toggle('open');
+}
+
+function filterUsers() {
+  const q = document.getElementById('filterInput').value.toLowerCase().trim();
+  if (!q) { document.getElementById('userCount').textContent = allUsers.length; renderUserList(allUsers); return; }
+  const filtered = allUsers.filter(u =>
+    u.username.toLowerCase().includes(q) ||
+    (u.repositories || []).some(r => r.repoName.toLowerCase().includes(q))
+  );
+  document.getElementById('userCount').textContent = filtered.length;
+  renderUserList(filtered);
+}
+
+async function evictCache() {
+  if (!currentOrg) return;
+  try {
+    const res = await fetch(`${API}/api/github/cache/evict?org=${encodeURIComponent(currentOrg)}`);
+    showToast(res.ok ? `Cache evicted for ${currentOrg}` : 'Failed to evict cache');
+  } catch { showToast('Could not connect to server'); }
+}
+
+async function checkHealth() {
+  // Reset to checking state
+  ['Api','Gh'].forEach(k => {
+    document.getElementById('hDot'+k).className = 'health-dot checking';
+    document.getElementById('hVal'+k).className = 'health-val';
+    document.getElementById('hVal'+k).textContent = 'checking...';
+  });
+  document.getElementById('hPing').textContent = '—';
+  document.getElementById('hCheckedAt').textContent = '';
+
+  const t0 = Date.now();
+  try {
+    const res = await fetch(`${API}/api/github/health`);
+    const ping = Date.now() - t0;
+    const ok   = res.ok;
+    const dot  = document.getElementById('hDotApi');
+    const val  = document.getElementById('hValApi');
+    dot.className = 'health-dot ' + (ok ? 'up' : 'down');
+    val.className  = 'health-val  ' + (ok ? 'up' : 'down');
+    val.textContent = ok ? 'online' : 'error ' + res.status;
+    document.getElementById('hPing').textContent = ping + ' ms';
+    document.getElementById('hPing').className = 'health-val ' + (ping < 300 ? 'up' : ping < 800 ? '' : 'down');
+    // Update header dot
+    const md = document.getElementById('mainDot');
+    const hs = document.getElementById('headerSub');
+    if (ok) {
+      md.style.background = 'var(--green)'; md.style.boxShadow = '0 0 8px var(--green)';
+      hs.textContent = 'connected · localhost:8080';
+    } else {
+      md.style.background = 'var(--red)'; md.style.boxShadow = '0 0 8px var(--red)';
+      hs.textContent = 'server error';
+    }
+  } catch {
+    document.getElementById('hDotApi').className = 'health-dot down';
+    document.getElementById('hValApi').className  = 'health-val down';
+    document.getElementById('hValApi').textContent = 'offline';
+    document.getElementById('hPing').textContent = '—';
+    // Update header dot
+    const md2 = document.getElementById('mainDot');
+    md2.style.background = 'var(--red)'; md2.style.boxShadow = '0 0 8px var(--red)';
+    document.getElementById('headerSub').textContent = 'server offline';
+  }
+
+  // GitHub API reachability check
+  try {
+    const r2 = await fetch('https://api.github.com');
+    const dot2 = document.getElementById('hDotGh');
+    const val2 = document.getElementById('hValGh');
+    dot2.className = 'health-dot up';
+    val2.className  = 'health-val up';
+    val2.textContent = r2.ok || r2.status === 403 ? 'reachable' : 'degraded';
+  } catch {
+    document.getElementById('hDotGh').className  = 'health-dot down';
+    document.getElementById('hValGh').className   = 'health-val down';
+    document.getElementById('hValGh').textContent  = 'unreachable';
+  }
+
+  document.getElementById('hCheckedAt').textContent =
+    'last checked ' + new Date().toLocaleTimeString();
+}
+
+// Run on page load, then auto-recheck every 30s
+checkHealth();
+setInterval(checkHealth, 30000);
+
+document.getElementById('orgInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runReport();
+});
+</script>
+</body>
+</html>
